@@ -14,4 +14,5 @@ target_include_directories(CMT2300 INTERFACE
 
 target_sources(CMT2300 INTERFACE
     ./cmt2300.c
+    ./_cmtRegCfg.c
 )
