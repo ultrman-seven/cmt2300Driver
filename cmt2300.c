@@ -9,6 +9,24 @@
 
 #define Cmt2300DelayTime_us_swFromStb2RxTx 360
 
+#define Cmt2300_RegAdd_Ctrl_ModeCtrl 0x60
+#define Cmt2300_RegAdd_Ctrl_ModeState 0x61
+#define Cmt2300_RegAdd_Ctrl_FreqChannel 0x63
+#define Cmt2300_RegAdd_Ctrl_FreqOffset 0x64
+#define Cmt2300_RegAdd_Ctrl_IO 0x65
+#define Cmt2300_RegAdd_Ctrl_Int1 0x66
+#define Cmt2300_RegAdd_Ctrl_Int2 0x67
+#define Cmt2300_RegAdd_Ctrl_IntEn 0x68
+#define Cmt2300_RegAdd_Ctrl_Fifo 0x69
+#define Cmt2300_RegAdd_Ctrl_Int1Clr 0x6a
+#define Cmt2300_RegAdd_Ctrl_Int2Clr 0x6b
+#define Cmt2300_RegAdd_Ctrl_FifoClr 0x6c
+#define Cmt2300_RegAdd_Ctrl_IntFlag 0x6d
+#define Cmt2300_RegAdd_Ctrl_FifoFlag 0x6e
+#define Cmt2300_RegAdd_Ctrl_RssiCode 0x6f
+#define Cmt2300_RegAdd_Ctrl_RssiDbm 0x70
+#define Cmt2300_RegAdd_Ctrl_Lbd 0x71
+
 #define Cmt2300_ModeSwitchCmd_standby 0b00000010
 #define Cmt2300_ModeSwitchCmd_rfs____ 0b00000100
 #define Cmt2300_ModeSwitchCmd_rf_____ 0b00001000
@@ -21,6 +39,7 @@
 enum
 {
     Cmt2300Fsm_Boot = 0,
+    Cmt2300Fsm_Rst,
     Cmt2300Fsm_Init,
     Cmt2300Fsm_DelayAfterCsEn,
     Cmt2300Fsm_DelayBeforeCsDis,
@@ -64,9 +83,17 @@ static void cmt2300OnSpiTxCpltCbk(void *handle)
 
 #define cmt2300SpiTx(_handle, _buf, _len) (_handle)->cfg.api.spiWriteReadAsync(Cmt2300_SpiDir_Tx, (_buf), (_len), cmt2300OnSpiTxCpltCbk, (_handle))
 
-void cmt2300Boot(cmt2300Handle_t *handle, cmt2300Cfg_t *cfg)
+void cmt2300Boot(cmt2300Handle_t *handle)
 {
     handle->fsm = Cmt2300Fsm_Boot;
+}
+
+static inline void cmt2300SendRegBuf(cmt2300Handle_t *handle, uint8_t target)
+{
+    handle->cfg.api.gpioWrite(Cmt2300_PinId_SpiCs, Cmt2300_PinLevel_Low);
+    handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
+    handle->fsm = Cmt2300Fsm_DelayAfterCsEn;
+    handle->targetFsm = target;
 }
 
 void cmt2300InitAsync(cmt2300Handle_t *handle, cmt2300Cfg_t *cfg, void (*cbk)(void *), void *arg)
@@ -74,8 +101,10 @@ void cmt2300InitAsync(cmt2300Handle_t *handle, cmt2300Cfg_t *cfg, void (*cbk)(vo
     handle->busBusy = 0;
     handle->cbk = cbk;
     handle->arg = arg;
-    handle->fsm = Cmt2300Fsm_Init;
-    handle->targetFsm = Cmt2300Fsm_Init;
+    handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
+    handle->regBuf[0] = 0x7f;
+    handle->regBuf[1] = 0xff;
+    cmt2300SendRegBuf(handle, Cmt2300Fsm_Init);
 }
 
 void cmt2300ConfigAsync(cmt2300Handle_t *handle, cmt2300Cfg_t *cfg, void (*cbk)(void *), void *arg)
@@ -98,6 +127,10 @@ void cmt2300Loop(cmt2300Handle_t *handle)
     switch (handle->fsm)
     {
     case Cmt2300Fsm_Boot:
+        break;
+    case Cmt2300Fsm_Rst:
+        if (handle->cfg.api.usTimerGetCnt() <= 30000)
+            break;
         break;
     case Cmt2300Fsm_Init:
         if (handle->busBusy)

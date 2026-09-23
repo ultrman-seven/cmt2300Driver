@@ -47,6 +47,8 @@ typedef struct
     uint8_t isOperateFifo;
     uint8_t isRx;
 
+    uint8_t cfgRegIdx;
+    
     uint8_t fsm;
     uint8_t targetFsm;
 
