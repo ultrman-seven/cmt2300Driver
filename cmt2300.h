@@ -51,6 +51,7 @@ typedef struct
     
     uint8_t fsm;
     uint8_t targetFsm;
+    uint8_t targetChipFsm;
 
     cmt2300Cfg_t cfg;
     void (*cbk)(void *);

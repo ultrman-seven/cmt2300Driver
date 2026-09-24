@@ -68,9 +68,12 @@ enum
 extern const uint16_t cmtRegCfgDataLen;
 extern const uint16_t cmtRegCfgData[];
 
+// const uint16_t cmt
+
 void cmt2300OnIntCbk(cmt2300Handle_t *handle, uint8_t intId)
 {
 }
+
 
 void cmt2300TransmitAsync(cmt2300Handle_t *handle, uint8_t *datPtr, uint32_t datLen, void (*cbk)(void *), void *arg)
 {
@@ -104,12 +107,12 @@ void cmt2300InitAsync(cmt2300Handle_t *handle, cmt2300Cfg_t *cfg, void (*cbk)(vo
     handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
     handle->regBuf[0] = 0x7f;
     handle->regBuf[1] = 0xff;
-    cmt2300SendRegBuf(handle, Cmt2300Fsm_Init);
+    cmt2300SendRegBuf(handle, Cmt2300Fsm_Rst);
 }
 
-void cmt2300ConfigAsync(cmt2300Handle_t *handle, cmt2300Cfg_t *cfg, void (*cbk)(void *), void *arg)
-{
-}
+// void cmt2300ConfigAsync(cmt2300Handle_t *handle, cmt2300Cfg_t *cfg, void (*cbk)(void *), void *arg)
+// {
+// }
 
 #define Cmt2300Mode_Rx 1
 #define Cmt2300Mode_Tx 0
@@ -118,9 +121,18 @@ void cmt2300SetModeAsync(cmt2300Handle_t *handle, uint8_t mode, void (*cbk)(void
 {
 }
 
-// void cmt2300TransmitAsync(cmt2300Handle_t *handle, uint8_t *buf, uint32_t len, void (*cbk)(void *), void *arg)
-// {
-// }
+#define Cmt2300_ChipFsm_Idle
+#define Cmt2300_ChipFsm_Sleep
+#define Cmt2300_ChipFsm_Standby
+#define Cmt2300_ChipFsm_Tx
+#define Cmt2300_ChipFsm_Rx
+#define Cmt2300_ChipFsm_TxS
+#define Cmt2300_ChipFsm_Rxs
+
+static void cmt2300SwitchMode(cmt2300Handle_t *handle, uint8_t mode)
+{
+
+}
 
 void cmt2300Loop(cmt2300Handle_t *handle)
 {
@@ -139,6 +151,8 @@ void cmt2300Loop(cmt2300Handle_t *handle)
         handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
         handle->fsm = Cmt2300Fsm_DelayAfterCsEn;
         break;
+
+
     case Cmt2300Fsm_DelayAfterCsEn:
         if (Cmt2300Fsm_FifoWrite == handle->targetFsm)
         {

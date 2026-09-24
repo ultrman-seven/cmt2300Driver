@@ -1,7 +1,7 @@
 #include "stdint.h"
 
-const uint16_t cmtRegCfgDataLen = 96;
 const uint16_t cmtRegCfgData[] = {
+    ////// rfPdk
     0x0000,
     0x0166,
     0x02EC,
@@ -103,4 +103,11 @@ const uint16_t cmtRegCfgData[] = {
     0x5D02,
     0x5E0A,
     0x5F7F
+    ///////////////
+    // ,
+    ////////////user
+    // 0x0000
+    ///////////
 };
+
+const uint16_t cmtRegCfgDataLen = sizeof(cmtRegCfgData) / 2;
