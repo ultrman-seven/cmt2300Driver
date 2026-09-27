@@ -74,7 +74,6 @@ void cmt2300OnIntCbk(cmt2300Handle_t *handle, uint8_t intId)
 {
 }
 
-
 void cmt2300TransmitAsync(cmt2300Handle_t *handle, uint8_t *datPtr, uint32_t datLen, void (*cbk)(void *), void *arg)
 {
 }
@@ -94,6 +93,14 @@ void cmt2300Boot(cmt2300Handle_t *handle)
 static inline void cmt2300SendRegBuf(cmt2300Handle_t *handle, uint8_t target)
 {
     handle->cfg.api.gpioWrite(Cmt2300_PinId_SpiCs, Cmt2300_PinLevel_Low);
+    handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
+    handle->fsm = Cmt2300Fsm_DelayAfterCsEn;
+    handle->targetFsm = target;
+}
+
+static inline void cmt2300Send1ByteFifo(cmt2300Handle_t *handle, uint8_t target)
+{
+    handle->cfg.api.gpioWrite(Cmt2300_PinId_FifoCs, Cmt2300_PinLevel_Low);
     handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
     handle->fsm = Cmt2300Fsm_DelayAfterCsEn;
     handle->targetFsm = target;
@@ -131,7 +138,6 @@ void cmt2300SetModeAsync(cmt2300Handle_t *handle, uint8_t mode, void (*cbk)(void
 
 static void cmt2300SwitchMode(cmt2300Handle_t *handle, uint8_t mode)
 {
-
 }
 
 void cmt2300Loop(cmt2300Handle_t *handle)
@@ -140,10 +146,13 @@ void cmt2300Loop(cmt2300Handle_t *handle)
     {
     case Cmt2300Fsm_Boot:
         break;
+
+    // 等30ms
     case Cmt2300Fsm_Rst:
         if (handle->cfg.api.usTimerGetCnt() <= 30000)
             break;
         break;
+
     case Cmt2300Fsm_Init:
         if (handle->busBusy)
             break;
@@ -152,52 +161,80 @@ void cmt2300Loop(cmt2300Handle_t *handle)
         handle->fsm = Cmt2300Fsm_DelayAfterCsEn;
         break;
 
-
+    // CS已经拉低
     case Cmt2300Fsm_DelayAfterCsEn:
         if (Cmt2300Fsm_FifoWrite == handle->targetFsm)
         {
+            // 等一个时钟
             if (handle->cfg.api.usTimerGetCnt() <= Cmt2300DelayTime_us_FifoAftCsEn)
                 break;
+            // 发一个字节
             handle->cfg.api.spiWriteReadAsync(Cmt2300_SpiDir_Tx, handle->tx.buf, 1, cmt2300OnSpiTxCpltCbk, handle);
             ++(handle->tx.buf);
             --(handle->tx.len);
         }
         else
         {
+            // 等一个时钟
             if (handle->cfg.api.usTimerGetCnt() <= Cmt2300DelayTime_us_SpiAftCsEn)
                 break;
-            handle->cfg.api.spiWriteReadAsync(Cmt2300_SpiDir_Tx, handle->regBuf, 2, cmt2300OnSpiTxCpltCbk, handle);
+            if (handle->isRx)
+                // 如果要读发一个字节
+                handle->cfg.api.spiWriteReadAsync(Cmt2300_SpiDir_Tx, handle->regBuf, 1, cmt2300OnSpiTxCpltCbk, handle);
+            else
+                // 如果要写发两个字节
+                handle->cfg.api.spiWriteReadAsync(Cmt2300_SpiDir_Tx, handle->regBuf, 2, cmt2300OnSpiTxCpltCbk, handle);
         }
         handle->fsm = Cmt2300Fsm_Wait4Spi;
         break;
+
+    case Cmt2300Fsm_Wait4Spi:
+        // 等spi发完
+        if (handle->busBusy)
+            break;
+        handle->fsm = Cmt2300Fsm_DelayBeforeCsDis;
+        handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
+        break;
+
     case Cmt2300Fsm_DelayBeforeCsDis:
         if (Cmt2300Fsm_FifoWrite == handle->targetFsm)
         {
+            // 如果是操作fifo的
+            // 发完过一会再拉高CS
             if (handle->cfg.api.usTimerGetCnt() <= Cmt2300DelayTime_us_FifoBfCsDis)
                 break;
+            // 拉高CS之后再等一会
             handle->cfg.api.gpioWrite(Cmt2300_PinId_FifoCs, Cmt2300_PinLevel_High);
             handle->fsm = Cmt2300Fsm_DelayAfterFifo;
             handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
         }
         else
         {
+            if (handle->isRx)
+            {
+                handle->cfg.api.gpioWrite(Cmt2300_PinId_FifoCs, Cmt2300_PinLevel_Low);
+                handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
+                handle->fsm = Cmt2300Fsm_DelayAfterCsEn;
+            }
+            //
+            else
+                // 如果是写寄存器的
+                handle->fsm = handle->targetFsm;
         }
         break;
     case Cmt2300Fsm_DelayAfterFifo:
         if (handle->cfg.api.usTimerGetCnt() <= Cmt2300DelayTime_us_FifoAftCsDis)
             break;
+        // 要是还有数据没发完，继续发
         if (handle->tx.len)
         {
             handle->cfg.api.gpioWrite(Cmt2300_PinId_FifoCs, Cmt2300_PinLevel_Low);
             handle->fsm = Cmt2300Fsm_DelayBeforeCsDis;
             handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
         }
-        break;
-    case Cmt2300Fsm_Wait4Spi:
-        if (handle->busBusy)
-            break;
-        handle->fsm = Cmt2300Fsm_DelayBeforeCsDis;
-        handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
+        else
+        {
+        }
         break;
     case Cmt2300Fsm_:
         break;
