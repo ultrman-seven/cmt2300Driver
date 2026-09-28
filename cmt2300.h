@@ -8,6 +8,7 @@ extern "C"
 
 #include "stdint.h"
 
+
 #define Cmt2300_IntId_INT1 0
 #define Cmt2300_IntId_INT2 0
 
@@ -50,6 +51,7 @@ typedef struct
     uint8_t cfgRegIdx;
     
     uint8_t fsm;
+    uint8_t spiFsm;
     uint8_t targetFsm;
     uint8_t targetChipFsm;
 
