@@ -8,7 +8,6 @@ extern "C"
 
 #include "stdint.h"
 
-
 #define Cmt2300_IntId_INT1 0
 #define Cmt2300_IntId_INT2 0
 
@@ -33,7 +32,6 @@ struct __cmt2300ExternalApi_t
     uint32_t (*usTimerGetCnt)(void);
 };
 
-
 typedef void (*cmt2300UserOnRxCbk)(uint8_t *, uint32_t);
 
 typedef struct
@@ -44,12 +42,16 @@ typedef struct
 
 typedef struct
 {
-    uint8_t busBusy;
-    uint8_t isOperateFifo;
-    uint8_t isRx;
+    struct
+    {
+        uint8_t busBusy : 1;
+        uint8_t isOperateFifo : 1;
+        uint8_t isRx : 1;
+        uint8_t isSpiDoingRegRx : 1;
+    };
 
     uint8_t cfgRegIdx;
-    
+
     uint8_t fsm;
     uint8_t spiFsm;
     uint8_t targetFsm;
@@ -66,7 +68,6 @@ typedef struct
     } rx, tx;
 
 } cmt2300Handle_t;
-
 
 #ifdef __cplusplus
 }
