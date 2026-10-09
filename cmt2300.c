@@ -187,7 +187,7 @@ static inline void cmt2300SetChipFsm(cmt2300Handle_t *handle, uint8_t fsm, uint8
 static inline void cmt2300GetChipFsm(cmt2300Handle_t *handle)
 {
     // if (handle->spiFsm != Cmt2300_SpiFsm_Idle)
-        // return 1;
+    // return 1;
     handle->regBuf[0] = Cmt2300_RegAdd_Ctrl_ModeState | 0x80;
     handle->isRx = 1;
     handle->isOperateFifo = 0;
@@ -630,6 +630,9 @@ uint8_t cmt2300TransmitAsync(cmt2300Handle_t *handle, uint8_t *datPtr, uint8_t d
 
     if (handle->targetChipFsm != Cmt2300_ChipFsm_Standby)
         return Cmt2300_ErrCode_TxNotReady;
+
+    if (datLen > Cmt2300_MaxTxBufLen)
+        return Cmt2300_ErrCode_TxLenOutofSize;
 
     handle->txBuf = datPtr;
     handle->txLen = datLen;

@@ -23,12 +23,17 @@ extern "C"
 #define Cmt2300_TimerCtrlState_Stop 0
 #define Cmt2300_TimerCtrlState_RstAndStart 1
 
+#define Cmt2300_MaxDataLen 31
+#define Cmt2300_MaxRxBufLen Cmt2300_MaxDataLen
+#define Cmt2300_MaxTxBufLen Cmt2300_MaxDataLen
+
 #define Cmt2300_ErrCode_Success 0
 #define Cmt2300_ErrCode_TxTimeOut 1
 #define Cmt2300_ErrCode_CrcErr 2
 #define Cmt2300_ErrCode_BusBusy 3
 #define Cmt2300_ErrCode_TxNotReady 4
 #define Cmt2300_ErrCode_TxNotReturn 5
+#define Cmt2300_ErrCode_TxLenOutofSize 6
 
 // #define Cmt2300Mode_Rx 1
 // #define Cmt2300Mode_TxPrepare 0
