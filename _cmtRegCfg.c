@@ -1,6 +1,16 @@
 #include "stdint.h"
+#include "_cmt2300Reg.h"
 
 const uint16_t cmtRegCfgData[] = {
+    // 4.1. Disable RSTN_IN
+    // 4.2. Enable LOCKING_EN
+    // 4.3. Diable LFOSC
+
+    // 4.5. 清除中断
+    // 0x6a3f,
+    // 0x6b3f,
+
+    // 4.6. 配寄存器
     ////// rfPdk
     0x0000,
     0x0166,
@@ -104,10 +114,17 @@ const uint16_t cmtRegCfgData[] = {
     0x5E0A,
     0x5F7F
     ///////////////
-    // ,
+    ,
     ////////////user
-    // 0x0000
+
+    0x6500 | CMT2300A_GPIO2_SEL_INT1,         // gpio
+    0x6900 | CMT2300A_MASK_FIFO_AUTO_CLR_DIS, // fifo
+    // 0x6600 | CMT2300A_INT_SEL_RX_FIFO_NMTY,   // irq sel
+    0x6600 | CMT2300A_INT_SEL_TX_DONE, // irq sel
+    0x6800 | CMT2300A_MASK_TX_DONE_EN, // irq en
     ///////////
+
+    0xffff // stop flag
 };
 
-const uint16_t cmtRegCfgDataLen = sizeof(cmtRegCfgData) / 2;
+// const uint16_t cmtRegCfgDataLen = sizeof(cmtRegCfgData) / 2;
