@@ -12,6 +12,7 @@ const uint16_t cmtRegCfgData[] = {
 
     // 4.6. 配寄存器
     ////// rfPdk
+    // [CMT Bank]
     0x0000,
     0x0166,
     0x02EC,
@@ -25,6 +26,7 @@ const uint16_t cmtRegCfgData[] = {
     0x0A02,
     0x0BD0,
 
+    // [System Bank]
     0x0CAE,
     0x0DE0,
     0x0E30,
@@ -38,6 +40,7 @@ const uint16_t cmtRegCfgData[] = {
     0x1600,
     0x1781,
 
+    // [Frequency Bank]
     0x1842,
     0x1971,
     0x1ACE,
@@ -47,23 +50,24 @@ const uint16_t cmtRegCfgData[] = {
     0x1E1C,
     0x1F1C,
 
-    0x2032,
-    0x2118,
+    // [Data Rate Bank]
+    0x203C,
+    0x2197,
     0x2210,
-    0x2399,
-    0x24E1,
-    0x259B,
+    0x2311,
+    0x24E9,
+    0x2513,
     0x2619,
     0x270A,
     0x289F,
-    0x2939,
+    0x294B,
     0x2A29,
     0x2B29,
     0x2CC0,
-    0x2D51,
-    0x2E2A,
+    0x2DC5,
+    0x2E06,
     0x2F53,
-    0x3000,
+    0x3008,
     0x3100,
     0x32B4,
     0x3300,
@@ -72,6 +76,7 @@ const uint16_t cmtRegCfgData[] = {
     0x3600,
     0x3700,
 
+    // [Baseband Bank]
     0x3812,
     0x3908,
     0x3A00,
@@ -102,16 +107,17 @@ const uint16_t cmtRegCfgData[] = {
     0x531F,
     0x5410,
 
+    // [TX Bank]
     0x5550,
     0x569A,
     0x570C,
-    0x5810,
-    0x5988,
-    0x5AB0,
+    0x5800,
+    0x5909,
+    0x5A70,
     0x5B00,
-    0x5C0F,
-    0x5D02,
-    0x5E0A,
+    0x5C3F,
+    0x5D08,
+    0x5E3F,
     0x5F7F
     ///////////////
     ,

@@ -88,7 +88,7 @@ typedef struct
     cmt2300Cfg_t cfg;
     union
     {
-        uint8_t *txBuf;
+        const uint8_t *txBuf;
         uint8_t *rxBuf;
     };
     void (*cbk)(void *);
@@ -111,8 +111,8 @@ uint8_t cmt2300SleepCtrlAsync(cmt2300Handle_t *handle, uint8_t isSleep, void (*c
 
 uint8_t cmt2300TxPrepareAsync(cmt2300Handle_t *handle, void (*cbk)(void *), void *arg);
 uint8_t cmt2300ResandAsync(cmt2300Handle_t *handle, void (*cbk)(void *), void *arg);
-uint8_t cmt2300TransmitAsync(cmt2300Handle_t *handle, uint8_t *datPtr, uint8_t datLen, void (*cbk)(void *), void *arg);
-
+uint8_t cmt2300TransmitAsync(cmt2300Handle_t *handle, const uint8_t *datPtr, uint8_t datLen, void (*cbk)(void *), void *arg);
+uint8_t cmt2300IsReady(cmt2300Handle_t *handle);
 uint8_t cmt2300StartRxAsync(cmt2300Handle_t *handle, uint8_t *buf, uint8_t bufLen, void (*cbk)(void *), void *arg);
 
 #ifdef __cplusplus
