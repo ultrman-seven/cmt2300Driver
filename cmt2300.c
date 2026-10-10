@@ -26,13 +26,13 @@
 #define Cmt2300_ChipFsm_Tx 6
 #define Cmt2300_ChipFsm_Locking 8
 
-#define Cmt2300_ModeSwitchCmd_standby 0b00000010
-#define Cmt2300_ModeSwitchCmd_rfs____ 0b00000100
-#define Cmt2300_ModeSwitchCmd_rf_____ 0b00001000
-#define Cmt2300_ModeSwitchCmd_sleep__ 0b00010000
-#define Cmt2300_ModeSwitchCmd_tfs____ 0b00100000
-#define Cmt2300_ModeSwitchCmd_tx_____ 0b01000000
-#define Cmt2300_ModeSwitchCmd_swRxTx_ 0b10000000
+#define Cmt2300_ModeSwitchCmd_standby 0x02 // 0b00000010
+#define Cmt2300_ModeSwitchCmd_rfs____ 0x04 // 0b00000100
+#define Cmt2300_ModeSwitchCmd_rf_____ 0x08 // 0b00001000
+#define Cmt2300_ModeSwitchCmd_sleep__ 0x10 // 0b00010000
+#define Cmt2300_ModeSwitchCmd_tfs____ 0x20 // 0b00100000
+#define Cmt2300_ModeSwitchCmd_tx_____ 0x40 // 0b01000000
+#define Cmt2300_ModeSwitchCmd_swRxTx_ 0x80 // 0b10000000
 #define Cmt2300_ModeSwitchCmd_
 
 static const uint8_t Cmt2300_ModeSwitchCmds[] =
@@ -256,7 +256,7 @@ static inline void cmtSpiLoop(cmt2300Handle_t *handle)
             }
             else
             {
-                buf = handle->txBuf;
+                buf = (uint8_t *)(handle->txBuf);
                 ++(handle->txBuf);
                 --(handle->txLen);
             }
@@ -623,7 +623,7 @@ uint8_t cmt2300ResandAsync(cmt2300Handle_t *handle, void (*cbk)(void *), void *a
 /// @param datLen
 /// @param cbk 发送完成之后的操作
 /// @param arg cbk的参数
-uint8_t cmt2300TransmitAsync(cmt2300Handle_t *handle,const uint8_t *datPtr, uint8_t datLen, void (*cbk)(void *), void *arg)
+uint8_t cmt2300TransmitAsync(cmt2300Handle_t *handle, const uint8_t *datPtr, uint8_t datLen, void (*cbk)(void *), void *arg)
 {
     if (handle->fsm != Cmt2300Fsm_Idle)
         return Cmt2300_ErrCode_BusBusy;
