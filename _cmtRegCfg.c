@@ -7,8 +7,8 @@ const uint16_t cmtRegCfgData[] = {
     // 4.3. Diable LFOSC
 
     // 4.5. 清除中断
-    // 0x6a3f,
-    // 0x6b3f,
+    0x6a3f,
+    0x6b3f,
 
     // 4.6. 配寄存器
     ////// rfPdk

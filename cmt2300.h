@@ -47,7 +47,8 @@ struct __cmt2300ExternalApi_t
     uint32_t (*usTimerGetCnt)(void);
 };
 
-typedef void (*cmt2300UserOnRxCbk)(uint8_t *, uint32_t);
+// typedef void (*cmt2300UserOnRxCbk)(uint8_t *, uint32_t);
+typedef void (*cmt2300UserOnRxCbk)(uint8_t *, uint8_t);
 
 typedef struct
 {
@@ -90,6 +91,7 @@ typedef struct
     {
         const uint8_t *txBuf;
         uint8_t *rxBuf;
+        const uint16_t *regCfgPtr;
     };
     void (*cbk)(void *);
     void *arg;
@@ -109,11 +111,12 @@ void cmt2300OnIntCbk(cmt2300Handle_t *handle, uint8_t intId);
 
 uint8_t cmt2300SleepCtrlAsync(cmt2300Handle_t *handle, uint8_t isSleep, void (*cbk)(void *), void *arg);
 
-uint8_t cmt2300TxPrepareAsync(cmt2300Handle_t *handle, void (*cbk)(void *), void *arg);
+uint8_t cmt2300TxPrepareAsync(cmt2300Handle_t *handle, uint8_t txLen, void (*cbk)(void *), void *arg);
 uint8_t cmt2300ResandAsync(cmt2300Handle_t *handle, void (*cbk)(void *), void *arg);
-uint8_t cmt2300TransmitAsync(cmt2300Handle_t *handle, const uint8_t *datPtr, uint8_t datLen, void (*cbk)(void *), void *arg);
+// uint8_t cmt2300TransmitAsync(cmt2300Handle_t *handle, const uint8_t *datPtr, uint8_t datLen, void (*cbk)(void *), void *arg);
+uint8_t cmt2300TransmitAsync(cmt2300Handle_t *handle, const uint8_t *datPtr, void (*cbk)(void *), void *arg);
 uint8_t cmt2300IsReady(cmt2300Handle_t *handle);
-uint8_t cmt2300StartRxAsync(cmt2300Handle_t *handle, uint8_t *buf, uint8_t bufLen, void (*cbk)(void *), void *arg);
+uint8_t cmt2300StartRxAsync(cmt2300Handle_t *handle, uint8_t *buf, void (*cbk)(void *), void *arg);
 
 #ifdef __cplusplus
 }

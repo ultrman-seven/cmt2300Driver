@@ -17,6 +17,8 @@
 #define Cmt2300Timeout_Tick_tx 50
 #define Cmt2300Timeout_us_tx 50000
 
+#define Cmt2300RxLenGetFlag 0xff
+
 #define Cmt2300_ChipFsm_Idle 0
 #define Cmt2300_ChipFsm_Sleep 1
 #define Cmt2300_ChipFsm_Standby 2
@@ -56,8 +58,8 @@ enum
     Cmt2300Fsm_Init_mdf_Sta,
     Cmt2300Fsm_Init_mdf_lockEn,
     Cmt2300Fsm_Init_mdf_lfoscDis,
-    Cmt2300Fsm_Init_clrInt1,
-    Cmt2300Fsm_Init_clrInt2,
+    // Cmt2300Fsm_Init_clrInt1,
+    // Cmt2300Fsm_Init_clrInt2,
     Cmt2300Fsm_Init_cfgReg,
     Cmt2300Fsm_Init_goSlp,
 
@@ -84,10 +86,15 @@ enum
     Cmt2300Fsm_TxWaitIntSignal,
     Cmt2300Fsm_TxEndCheck2Stb,
 
+    Cmt2300Fsm_txSetDataLen,
+    Cmt2300Fsm_txSetInt,
+    Cmt2300Fsm_txSw2Slp,
     Cmt2300Fsm_ready2Tx,
+
     Cmt2300Fsm_ready2Rx,
     Cmt2300Fsm_UnderRx,
     Cmt2300Fsm_Rx1ByteOk,
+    Cmt2300Fsm_RxComplete,
     // Cmt2300Fsm_TxWaitModeChange,
     // Cmt2300Fsm_TxWaitTimeout,
     // Cmt2300Fsm_TxCheckTxOk,
@@ -124,6 +131,7 @@ extern const uint16_t cmtRegCfgData[];
 static void cmt2300OnSpiTxCpltCbk(void *handle) { ((cmt2300Handle_t *)handle)->busBusy = 0; }
 
 // #define cmt2300SpiTx(_handle, _buf, _len) (_handle)->cfg.api.spiWriteReadAsync(Cmt2300_SpiDir_Tx, (_buf), (_len), cmt2300OnSpiTxCpltCbk, (_handle))
+#define _cmtTickCnt(_hd) (_hd)->regBuf[3]
 
 static inline void cmt2300ModifyReg(cmt2300Handle_t *handle, uint8_t reg, uint8_t set, uint8_t clr, uint8_t target)
 {
@@ -181,7 +189,7 @@ static inline void cmt2300SetChipFsm(cmt2300Handle_t *handle, uint8_t fsm, uint8
     handle->fsm = Cmt2300Fsm_ChipFsmWaitCmdSpi;
     handle->targetFsm = target;
 
-    handle->regBuf[3] = 0;
+    _cmtTickCnt(handle) = 0;
 }
 
 static inline void cmt2300GetChipFsm(cmt2300Handle_t *handle)
@@ -249,8 +257,8 @@ static inline void cmtSpiLoop(cmt2300Handle_t *handle)
             if (handle->isRx)
             {
                 buf = handle->rxBuf;
-                --(handle->rxLen);
-                ++(handle->rxBuf);
+                // --(handle->rxLen);
+                // ++(handle->rxBuf);
                 mode = Cmt2300_SpiDir_Rx;
                 // handle->isRx = 0;
             }
@@ -323,9 +331,25 @@ static inline void cmtSpiLoop(cmt2300Handle_t *handle)
         if (handle->cfg.api.usTimerGetCnt() <= waitTime)
             break;
     }
-        if ((handle->isOperateFifo) && (!(handle->isRx)) && (handle->txLen))
+        if ((handle->isOperateFifo))
         {
-            handle->spiFsm = Cmt2300_SpiFsm_Required;
+            if (handle->isRx)
+            {
+                // 收到的第一个字节是数据长度
+                if (handle->rxLen == Cmt2300RxLenGetFlag)
+                {
+                    handle->rxLen = handle->rxBuf[0];
+                    if (handle->rxLen > Cmt2300_MaxRxBufLen)
+                        handle->rxLen = Cmt2300_MaxRxBufLen;
+                }
+                else
+                {
+                    --(handle->rxLen);
+                    ++(handle->rxBuf);
+                }
+            }
+            else if (handle->txLen)
+                handle->spiFsm = Cmt2300_SpiFsm_Required;
             break;
         }
         handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_Stop);
@@ -384,28 +408,32 @@ void cmt2300Loop(cmt2300Handle_t *handle)
         break;
 
     case Cmt2300Fsm_Init_mdf_lfoscDis:
+        handle->regCfgPtr = cmtRegCfgData;
         cmt2300ModifyReg(handle, Cmt2300_RegAdd_Sys2, 0,
                          (uint8_t)(~(CMT2300A_MASK_LFOSC_RECAL_EN | CMT2300A_MASK_LFOSC_CAL1_EN | CMT2300A_MASK_LFOSC_CAL2_EN)),
-                         Cmt2300Fsm_Init_clrInt1);
+                         //  Cmt2300Fsm_Init_clrInt1);
+                         Cmt2300Fsm_Init_cfgReg);
         break;
 
-    case Cmt2300Fsm_Init_clrInt1:
-        cmt2300SendRegBuf(handle, Cmt2300_RegAdd_Ctrl_Int1Clr, 0x3f, Cmt2300Fsm_Init_clrInt2);
-        break;
-    case Cmt2300Fsm_Init_clrInt2:
-        handle->regBuf[3] = 0;
-        cmt2300SendRegBuf(handle, Cmt2300_RegAdd_Ctrl_Int2Clr, 0x3f, Cmt2300Fsm_Init_cfgReg);
-        break;
+        // case Cmt2300Fsm_Init_clrInt1:
+        //     cmt2300SendRegBuf(handle, Cmt2300_RegAdd_Ctrl_Int1Clr, 0x3f, Cmt2300Fsm_Init_clrInt2);
+        //     break;
+        // case Cmt2300Fsm_Init_clrInt2:
+        //     handle->regBuf[3] = 0;
+        //     cmt2300SendRegBuf(handle, Cmt2300_RegAdd_Ctrl_Int2Clr, 0x3f, Cmt2300Fsm_Init_cfgReg);
+        //     break;
 
     case Cmt2300Fsm_Init_cfgReg:
     {
-        uint16_t rd = cmtRegCfgData[(handle->regBuf[3])];
+        // uint16_t rd = cmtRegCfgData[(handle->regBuf[3])];
+        uint16_t rd = *(handle->regCfgPtr);
         if (0xffff == rd)
             handle->fsm = Cmt2300Fsm_Init_goSlp;
         else
         {
             cmt2300SendRegBuf(handle, ((rd >> 8) & 0xff), (rd & 0xff), Cmt2300Fsm_Init_cfgReg);
-            ++(handle->regBuf[3]);
+            // ++(handle->regBuf[3]);
+            ++(handle->regCfgPtr);
         }
     }
     break;
@@ -440,8 +468,8 @@ void cmt2300Loop(cmt2300Handle_t *handle)
                 handle->fsm = handle->targetFsm;
             else
             {
-                ++(handle->regBuf[3]);
-                if (handle->regBuf[3] >= Cmt2300Timeout_Tick_sw)
+                ++(_cmtTickCnt(handle));
+                if (_cmtTickCnt(handle) >= Cmt2300Timeout_Tick_sw)
                 {
                     cmt2300SetChipFsm(handle, handle->targetChipFsm, handle->targetFsm);
                 }
@@ -493,44 +521,21 @@ void cmt2300Loop(cmt2300Handle_t *handle)
         cmt2300SetChipFsm(handle, Cmt2300_ChipFsm_Standby, Cmt2300Fsm_RunUsrCbk);
         break;
 
-    // case Cmt2300Fsm_TxWaitModeChange:
-    //     if (Cmt2300_SpiFsm_Idle == handle->spiFsm)
-    //     {
-    //         handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
-    //         handle->regBuf[3] = 0;
-    //         handle->fsm = Cmt2300Fsm_TxWaitTimeout;
-    //     }
-    //     break;
-
-    // case Cmt2300Fsm_TxWaitTimeout:
-    //     if (handle->cfg.api.usTimerGetCnt() >= Cmt2300DelayTick_us_aftTx)
-    //     {
-    //         ++handle->regBuf[3];
-    //         if ((handle->regBuf[3]) >= Cmt2300Timeout_Tick_tx)
-    //         {
-    //             handle->errCode = Cmt2300_ErrCode_TxTimeOut;
-    //             handle->fsm = Cmt2300Fsm_RunUsrCbk;
-    //             handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_Stop);
-    //             break;
-    //         }
-    //         cmt2300ReadRegBuf(handle, Cmt2300_RegAdd_Ctrl_Int1Clr, Cmt2300Fsm_TxCheckTxOk);
-    //     }
-    //     break;
-
-    // case Cmt2300Fsm_TxCheckTxOk:
-    //     if ((handle->regBuf[1]) & CMT2300A_MASK_TX_DONE_FLG)
-    //     {
-    //         handle->errCode = Cmt2300_ErrCode_Success;
-    //         handle->fsm = Cmt2300Fsm_RunUsrCbk;
-    //         break;
-    //     }
-    //     handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_RstAndStart);
-    //     handle->fsm = Cmt2300Fsm_TxWaitTimeout;
-    //     break;
     case Cmt2300Fsm_ready2Rx:
         cmt2300SetChipFsm(handle, Cmt2300_ChipFsm_Rx, Cmt2300Fsm_UnderRx);
         break;
 
+    case Cmt2300Fsm_txSetDataLen:
+        cmt2300SendRegBuf(handle, Cmt2300_RegAdd_PayloadDataLen, handle->txLen, Cmt2300Fsm_txSetInt);
+        break;
+    case Cmt2300Fsm_txSetInt:
+        cmt2300SendRegBuf(handle, Cmt2300_RegAdd_Ctrl_Int1, CMT2300A_INT_SEL_TX_DONE, Cmt2300Fsm_txSw2Slp);
+        break;
+
+    case Cmt2300Fsm_txSw2Slp:
+        cmt2300SetChipFsm(handle, Cmt2300_ChipFsm_Sleep, Cmt2300Fsm_ready2Tx);
+
+        break;
     case Cmt2300Fsm_ready2Tx:
         cmt2300SetChipFsm(handle, Cmt2300_ChipFsm_Standby, Cmt2300Fsm_RunUsrCbk);
         break;
@@ -540,19 +545,32 @@ void cmt2300Loop(cmt2300Handle_t *handle)
             handle->fsm = Cmt2300Fsm_UnderRx;
         else
             // handle->fsm = Cmt2300Fsm_RunUsrCbk;
-            cmt2300SetChipFsm(handle, Cmt2300_ChipFsm_Standby, Cmt2300Fsm_RunUsrCbk);
-
+            cmt2300SetChipFsm(handle, Cmt2300_ChipFsm_Standby, Cmt2300Fsm_RxComplete);
         break;
+    case Cmt2300Fsm_RxComplete:
+        if (handle->cfg.rxCbk)
+            handle->cfg.rxCbk(handle->rxBuf - handle->rxLen, handle->rxLen);
+        handle->fsm = Cmt2300Fsm_RunUsrCbk;
+        break;
+
     case Cmt2300Fsm_RegMdf_read:
         if (Cmt2300_SpiFsm_Idle == handle->spiFsm)
         {
+            uint8_t regval = handle->regBuf[1];
             handle->regBuf[0] &= 0x7f;
             handle->regBuf[1] |= handle->regBuf[2];
             handle->regBuf[1] &= handle->regBuf[3];
-            handle->isRx = 0;
-            handle->isOperateFifo = 0;
-            handle->spiFsm = Cmt2300_SpiFsm_Required;
-            handle->fsm = Cmt2300Fsm_RegMdf_write;
+            if (regval == handle->regBuf[1])
+            {
+                handle->fsm = handle->targetFsm;
+            }
+            else
+            {
+                handle->isRx = 0;
+                handle->isOperateFifo = 0;
+                handle->spiFsm = Cmt2300_SpiFsm_Required;
+                handle->fsm = Cmt2300Fsm_RegMdf_write;
+            }
         }
         break;
     case Cmt2300Fsm_RegMdf_write:
@@ -623,7 +641,8 @@ uint8_t cmt2300ResandAsync(cmt2300Handle_t *handle, void (*cbk)(void *), void *a
 /// @param datLen
 /// @param cbk 发送完成之后的操作
 /// @param arg cbk的参数
-uint8_t cmt2300TransmitAsync(cmt2300Handle_t *handle, const uint8_t *datPtr, uint8_t datLen, void (*cbk)(void *), void *arg)
+uint8_t cmt2300TransmitAsync(cmt2300Handle_t *handle, const uint8_t *datPtr, void (*cbk)(void *), void *arg)
+// uint8_t cmt2300TransmitAsync(cmt2300Handle_t *handle, const uint8_t *datPtr, uint8_t datLen, void (*cbk)(void *), void *arg)
 {
     if (handle->fsm != Cmt2300Fsm_Idle)
         return Cmt2300_ErrCode_BusBusy;
@@ -631,11 +650,11 @@ uint8_t cmt2300TransmitAsync(cmt2300Handle_t *handle, const uint8_t *datPtr, uin
     if (handle->targetChipFsm != Cmt2300_ChipFsm_Standby)
         return Cmt2300_ErrCode_TxNotReady;
 
-    if (datLen > Cmt2300_MaxTxBufLen)
-        return Cmt2300_ErrCode_TxLenOutofSize;
+    // if (datLen > Cmt2300_MaxTxBufLen)
+    //     return Cmt2300_ErrCode_TxLenOutofSize;
 
     handle->txBuf = datPtr;
-    handle->txLen = datLen;
+    // handle->txLen = datLen;
     handle->cbk = cbk;
     handle->arg = arg;
 
@@ -663,16 +682,19 @@ void cmt2300OnIntCbk(cmt2300Handle_t *handle, uint8_t intId)
     }
 }
 
-uint8_t cmt2300TxPrepareAsync(cmt2300Handle_t *handle, void (*cbk)(void *), void *arg)
+uint8_t cmt2300TxPrepareAsync(cmt2300Handle_t *handle, uint8_t txLen, void (*cbk)(void *), void *arg)
 {
     // if (handle->targetChipFsm == Cmt2300_ChipFsm_Standby)
     // return Cmt2300_ErrCode_Success;
     if (handle->fsm != Cmt2300Fsm_Idle)
         return Cmt2300_ErrCode_BusBusy;
+    if (txLen > Cmt2300_MaxTxBufLen)
+        return Cmt2300_ErrCode_TxLenOutofSize;
 
     handle->cbk = cbk;
     handle->arg = arg;
-    cmt2300SendRegBuf(handle, Cmt2300_RegAdd_Ctrl_Int1, CMT2300A_INT_SEL_TX_DONE, Cmt2300Fsm_ready2Tx);
+    handle->txLen = txLen;
+    cmt2300SetChipFsm(handle, Cmt2300_ChipFsm_Standby, Cmt2300Fsm_txSetDataLen);
     return Cmt2300_ErrCode_Success;
 }
 
@@ -689,7 +711,8 @@ uint8_t cmt2300SleepCtrlAsync(cmt2300Handle_t *handle, uint8_t isSleep, void (*c
     return Cmt2300_ErrCode_Success;
 }
 
-uint8_t cmt2300StartRxAsync(cmt2300Handle_t *handle, uint8_t *buf, uint8_t bufLen, void (*cbk)(void *), void *arg)
+// uint8_t cmt2300StartRxAsync(cmt2300Handle_t *handle, uint8_t *buf, uint8_t bufLen, void (*cbk)(void *), void *arg)
+uint8_t cmt2300StartRxAsync(cmt2300Handle_t *handle, uint8_t *buf, void (*cbk)(void *), void *arg)
 {
     if (handle->targetChipFsm == Cmt2300_ChipFsm_Tx)
         return Cmt2300_ErrCode_TxNotReturn;
@@ -697,7 +720,7 @@ uint8_t cmt2300StartRxAsync(cmt2300Handle_t *handle, uint8_t *buf, uint8_t bufLe
         return Cmt2300_ErrCode_BusBusy;
 
     handle->rxBuf = buf;
-    handle->rxLen = bufLen;
+    handle->rxLen = Cmt2300RxLenGetFlag;
     handle->cbk = cbk;
     handle->arg = arg;
     cmt2300SendRegBuf(handle, Cmt2300_RegAdd_Ctrl_Int1, CMT2300A_INT_SEL_RX_FIFO_NMTY, Cmt2300Fsm_ready2Rx);

@@ -3,6 +3,7 @@
 
 #define Cmt2300_RegAdd_Sys1 0x0c
 #define Cmt2300_RegAdd_Sys2 0x0d
+#define Cmt2300_RegAdd_PayloadDataLen 0x46
 
 #define Cmt2300_RegAdd_Ctrl_ModeCtrl 0x60
 #define Cmt2300_RegAdd_Ctrl_ModeState 0x61
