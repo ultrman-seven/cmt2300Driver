@@ -49,8 +49,7 @@ static const uint8_t Cmt2300_ModeSwitchCmds[] =
 // Cmt2300Fsm_Init 寄存器配置
 enum
 {
-    Cmt2300Fsm_Boot = 0,
-    Cmt2300Fsm_Rst,
+    Cmt2300Fsm_Rst = 0,
     Cmt2300Fsm_RstWait,
 
     // init
@@ -100,14 +99,14 @@ enum
     // Cmt2300Fsm_TxCheckTxOk,
     // Cmt2300Fsm_dbg,
     Cmt2300Fsm_RunUsrCbk,
+    Cmt2300Fsm_Boot,
     Cmt2300Fsm_Idle,
     Cmt2300Fsm_,
 };
 
 enum
 {
-    Cmt2300_SpiFsm_Idle = 0,
-    Cmt2300_SpiFsm_Required,
+    Cmt2300_SpiFsm_Required = 0,
 
     Cmt2300_SpiFsm_DelayAfterCsEn,
     Cmt2300_SpiFsm_DataTrans,
@@ -122,6 +121,7 @@ enum
     Cmt2300_SpiFsm_RegWriteRequired,
     Cmt2300_SpiFsm_FifoReadRequired,
     Cmt2300_SpiFsm_FifoWriteRequired,
+    Cmt2300_SpiFsm_Idle,
     Cmt2300_SpiFsm_,
 };
 
@@ -341,6 +341,7 @@ static inline void cmtSpiLoop(cmt2300Handle_t *handle)
                     handle->rxLen = handle->rxBuf[0];
                     if (handle->rxLen > Cmt2300_MaxRxBufLen)
                         handle->rxLen = Cmt2300_MaxRxBufLen;
+                    handle->regBuf[2] = handle->rxLen;
                 }
                 else
                 {
@@ -349,8 +350,10 @@ static inline void cmtSpiLoop(cmt2300Handle_t *handle)
                 }
             }
             else if (handle->txLen)
+            {
                 handle->spiFsm = Cmt2300_SpiFsm_Required;
-            break;
+                break;
+            }
         }
         handle->cfg.api.usTimerCtrl(Cmt2300_TimerCtrlState_Stop);
         handle->spiFsm = Cmt2300_SpiFsm_Idle;
@@ -544,8 +547,11 @@ void cmt2300Loop(cmt2300Handle_t *handle)
         if (handle->rxLen)
             handle->fsm = Cmt2300Fsm_UnderRx;
         else
+        {
             // handle->fsm = Cmt2300Fsm_RunUsrCbk;
+            handle->rxLen = handle->regBuf[2];
             cmt2300SetChipFsm(handle, Cmt2300_ChipFsm_Standby, Cmt2300Fsm_RxComplete);
+        }
         break;
     case Cmt2300Fsm_RxComplete:
         if (handle->cfg.rxCbk)
@@ -594,6 +600,7 @@ void cmt2300Loop(cmt2300Handle_t *handle)
 void cmt2300Boot(cmt2300Handle_t *handle)
 {
     handle->fsm = Cmt2300Fsm_Boot;
+    handle->spiFsm = Cmt2300_SpiFsm_Idle;
 }
 
 void cmt2300InitAsync(cmt2300Handle_t *handle, cmt2300Cfg_t *cfg, void (*cbk)(void *), void *arg)
