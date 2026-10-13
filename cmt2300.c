@@ -17,7 +17,7 @@
 #define Cmt2300Timeout_Tick_tx 50
 #define Cmt2300Timeout_us_tx 50000
 
-#define Cmt2300RxLenGetFlag 0xff
+#define Cmt2300RxLenGetFlag 0xf0
 
 #define Cmt2300_ChipFsm_Idle 0
 #define Cmt2300_ChipFsm_Sleep 1
@@ -90,6 +90,7 @@ enum
     Cmt2300Fsm_txSw2Slp,
     Cmt2300Fsm_ready2Tx,
 
+    Cmt2300Fsm_FifoRdEn,
     Cmt2300Fsm_ready2Rx,
     Cmt2300Fsm_UnderRx,
     Cmt2300Fsm_Rx1ByteOk,
@@ -524,6 +525,10 @@ void cmt2300Loop(cmt2300Handle_t *handle)
         cmt2300SetChipFsm(handle, Cmt2300_ChipFsm_Standby, Cmt2300Fsm_RunUsrCbk);
         break;
 
+    case Cmt2300Fsm_FifoRdEn:
+        cmt2300ModifyReg(handle, Cmt2300_RegAdd_Ctrl_Fifo, 0,
+                         ~CMT2300A_MASK_SPI_FIFO_RD_WR_SEL, Cmt2300Fsm_ready2Rx);
+        break;
     case Cmt2300Fsm_ready2Rx:
         cmt2300SetChipFsm(handle, Cmt2300_ChipFsm_Rx, Cmt2300Fsm_UnderRx);
         break;
@@ -554,6 +559,7 @@ void cmt2300Loop(cmt2300Handle_t *handle)
         }
         break;
     case Cmt2300Fsm_RxComplete:
+        // handle->fsm = Cmt2300Fsm_Idle;
         if (handle->cfg.rxCbk)
             handle->cfg.rxCbk(handle->rxBuf - handle->rxLen, handle->rxLen);
         handle->fsm = Cmt2300Fsm_RunUsrCbk;
@@ -693,7 +699,7 @@ uint8_t cmt2300TxPrepareAsync(cmt2300Handle_t *handle, uint8_t txLen, void (*cbk
 {
     // if (handle->targetChipFsm == Cmt2300_ChipFsm_Standby)
     // return Cmt2300_ErrCode_Success;
-    if (handle->fsm != Cmt2300Fsm_Idle)
+    if ((handle->fsm != Cmt2300Fsm_Idle) && (handle->fsm != Cmt2300Fsm_UnderRx))
         return Cmt2300_ErrCode_BusBusy;
     if (txLen > Cmt2300_MaxTxBufLen)
         return Cmt2300_ErrCode_TxLenOutofSize;
@@ -707,7 +713,7 @@ uint8_t cmt2300TxPrepareAsync(cmt2300Handle_t *handle, uint8_t txLen, void (*cbk
 
 uint8_t cmt2300SleepCtrlAsync(cmt2300Handle_t *handle, uint8_t isSleep, void (*cbk)(void *), void *arg)
 {
-    if (handle->fsm != Cmt2300Fsm_Idle)
+    if (handle->spiFsm != Cmt2300_SpiFsm_Idle)
         return Cmt2300_ErrCode_BusBusy;
     handle->cbk = cbk;
     handle->arg = arg;
@@ -730,7 +736,7 @@ uint8_t cmt2300StartRxAsync(cmt2300Handle_t *handle, uint8_t *buf, void (*cbk)(v
     handle->rxLen = Cmt2300RxLenGetFlag;
     handle->cbk = cbk;
     handle->arg = arg;
-    cmt2300SendRegBuf(handle, Cmt2300_RegAdd_Ctrl_Int1, CMT2300A_INT_SEL_RX_FIFO_NMTY, Cmt2300Fsm_ready2Rx);
+    cmt2300SendRegBuf(handle, Cmt2300_RegAdd_Ctrl_Int1, CMT2300A_INT_SEL_RX_FIFO_NMTY, Cmt2300Fsm_FifoRdEn);
     // cmt2300SetChipFsm(handle, Cmt2300_ChipFsm_Rx, Cmt2300Fsm_UnderRx);
     return Cmt2300_ErrCode_Success;
 }
