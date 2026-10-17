@@ -16,7 +16,7 @@ const uint16_t cmtRegCfgData[] = {
     0x0000,
     0x0166,
     0x02EC,
-    0x031C,
+    0x031D,
     0x04F0,
     0x0580,
     0x0614,
@@ -115,8 +115,8 @@ const uint16_t cmtRegCfgData[] = {
     0x5909,
     0x5A70,
     0x5B00,
-    0x5C3F,
-    0x5D08,
+    0x5C7A,
+    0x5D17,
     0x5E3F,
     0x5F7F
     ///////////////
